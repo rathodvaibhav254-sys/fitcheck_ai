@@ -123,9 +123,10 @@ main{flex:1;padding:1.5rem 2rem 3rem;max-width:1200px;margin:0 auto;width:100%}
 .outfit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.2rem}
 .outfit-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;transition:all var(--trans);cursor:pointer}
 .outfit-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.35);border-color:var(--accent)}
-.outfit-img{height:200px;display:flex;align-items:center;justify-content:center;font-size:72px;position:relative;overflow:hidden}
+.outfit-img{height:200px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:12px 12px 0 0}
 .outfit-img img {position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;}
 .outfit-img .grad{position:absolute;inset:0;z-index:1;}
+.outfit-img .image-collage{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;height:100%;z-index:2;position:relative}
 .outfit-tag{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);color:#fff;font-size:.68rem;padding:3px 9px;border-radius:99px;z-index:2;}
 .outfit-info{padding:1rem}
 .outfit-name{font-family:'Inter',sans-serif;font-size:.95rem;font-weight:600;margin-bottom:.5rem}
@@ -330,6 +331,17 @@ footer{text-align:center;padding:1.2rem;font-size:.75rem;color:var(--muted);bord
 /* ---- DB: 40+ OUTFITS ---- */
 let db = [];
 let savedLookIds = [];
+let generatedOutfits = []; // Store generated suggestion outfits
+
+// Image categories for suggestions
+const imageCategories = {
+  'T-Shirt': ['T-Shirt_1.png', 'T-Shirt_2.jpg', 'T-Shirt_3.png', 'T-Shirt_4.jpg', 'T-Shirt_5.png', 'T-Shirt_6.jpg', 'T-Shirt_7.jpg', 'T-Shirt_8.jpg', 'T-Shirt_9.jpg', 'T-Shirt_10.jpg'],
+  'Hoodie': ['Hoodie_1.jpeg', 'Hoodie_2.png', 'Hoodie_3.jpeg', 'Hoodie_4.jpg', 'Hoodie_5.jpg', 'Hoodie_6.jpg', 'Hoodie_7.jpg', 'Hoodie_8.jpeg', 'Hoodie_9.png', 'Hoodie_10.jpeg'],
+  'Pants': ['Pants_1.jpg', 'Pants_2.jpg', 'Pants_3.jpeg', 'Pants_4.jpg', 'Pants_5.jpeg', 'Pants_6.jpeg', 'Pants_7.jpg', 'Pants_8.jpg', 'Pants_9.jpeg', 'Pants_10.jpeg'],
+  'Shoes': ['Shoes_1.jpg', 'Shoes_2.jpeg', 'Shoes_3.jpg', 'Shoes_4.jpg', 'Shoes_5.jpeg', 'Shoes_6.jpeg', 'Shoes_7.jpg', 'Shoes_8.jpg', 'Shoes_9.jpg', 'Shoes_10.jpg'],
+  'Accessories': ['Accessories_1.jpg', 'Accessories_2.jpg', 'Accessories_3.jpg', 'Accessories_4.jpeg', 'Accessories_5.jpg', 'Accessories_6.jpg', 'Accessories_7.jpg', 'Accessories_8.jpg', 'Accessories_9.jpg', 'Accessories_10.jpg'],
+  'formal': ['formal_1.jpg', 'formal_2.jpg', 'formal_3.jpg', 'formal_4.jpg', 'formal_5.jpg', 'formal_6.jpg', 'formal_7.jpg', 'formal_8.png', 'formal_9.jpg', 'formal_10.png']
+};
 
 async function fetchDb() {
   try {
@@ -636,26 +648,226 @@ function getSuggestions() {
   const g = document.getElementById('s-gender').value;
   const s = document.getElementById('s-season').value;
   
-  let res = db.filter(o => {
-    let mOcc = o.occ === occ;
-    let mG = (g === 'unisex' || o.g === 'unisex' || o.g === g);
-    let mS = (s === 'all' || o.s === 'all' || o.s === s);
-    return mOcc && mG && mS;
-  });
-  
-  // if strict filter fails, fallback to occasion only
-  if(res.length === 0) res = db.filter(o => o.occ === occ).slice(0,6);
+  // Generate 6 random outfit suggestions based on images
+  const suggestions = [];
+  for (let i = 0; i < 6; i++) {
+    const outfit = generateRandomOutfit(occ, g, s);
+    suggestions.push(outfit);
+    generatedOutfits.push(outfit); // Store for later retrieval
+  }
+  // Save to localStorage
+  localStorage.setItem('generatedOutfits', JSON.stringify(generatedOutfits));
   
   const grid = document.getElementById('suggestions-grid');
   grid.innerHTML = '';
-  if(res.length === 0) {
+  if(suggestions.length === 0) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="ei">🏜️</div><p>No matches found. Try changing filters.</p></div>`;
     return;
   }
   
-  res.forEach(item => {
+  suggestions.forEach(item => {
     grid.innerHTML += buildOutfitCard(item);
   });
+}
+
+function generateRandomOutfit(occ, g, s) {
+  // Smart category selection based on season and occasion
+  const categoryWeights = getCategoryWeights(occ, s);
+  
+  // Get allowed categories (exclude those with weight 0)
+  const allowedCategories = Object.keys(imageCategories).filter(cat => categoryWeights[cat] > 0);
+  
+  // Create weights object for allowed categories only
+  const allowedWeights = {};
+  allowedCategories.forEach(cat => {
+    allowedWeights[cat] = categoryWeights[cat];
+  });
+  
+  // Select categories based on weights
+  const selectedCategories = [];
+  
+  // Always include 3-4 items
+  const numItems = Math.floor(Math.random() * 2) + 3;
+  
+  for (let i = 0; i < numItems; i++) {
+    const category = allowedCategories[Math.floor(Math.random() * allowedCategories.length)];
+    if (!selectedCategories.includes(category)) {
+      selectedCategories.push(category);
+    }
+  }
+  
+  // If we don't have enough unique categories, fill with random ones from allowed
+  while (selectedCategories.length < numItems && allowedCategories.length > 0) {
+    const randomCategory = allowedCategories[Math.floor(Math.random() * allowedCategories.length)];
+    if (!selectedCategories.includes(randomCategory)) {
+      selectedCategories.push(randomCategory);
+    }
+  }
+  
+  // Select images for each category
+  const selectedImages = [];
+  const selectedItems = [];
+  
+  selectedCategories.forEach(cat => {
+    const images = imageCategories[cat];
+    const randomImage = images[Math.floor(Math.random() * images.length)];
+    selectedImages.push(`./images/${randomImage}`);
+    selectedItems.push(cat);
+  });
+  
+  // Generate random colors
+  const colors = [];
+  for (let i = 0; i < 3; i++) {
+    colors.push('#' + Math.floor(Math.random()*16777215).toString(16));
+  }
+  
+  // Generate outfit name based on occasion
+  const names = {
+    casual: ['Relaxed Vibes', 'Weekend Comfort', 'Easy Going', 'Chill Mode'],
+    college: ['Campus Style', 'Study Session', 'Lecture Ready', 'Student Life'],
+    party: ['Night Out', 'Party Ready', 'Club Scene', 'Festive Mood'],
+    outing: ['Adventure Ready', 'Travel Style', 'Outdoor Fun', 'Explorer'],
+    formal: ['Professional Look', 'Business Attire', 'Executive Style', 'Corporate'],
+    date: ['Romantic Evening', 'Date Night', 'Special Occasion', 'Dinner Date'],
+    wedding: ['Wedding Guest', 'Ceremony Ready', 'Elegant Affair', 'Festive Event'],
+    festive: ['Cultural Celebration', 'Traditional Wear', 'Festival Style', 'Holiday Spirit'],
+    gym: ['Workout Gear', 'Fitness Ready', 'Gym Session', 'Active Wear'],
+    beach: ['Beach Day', 'Summer Vibes', 'Coastal Style', 'Resort Wear']
+  };
+  
+  const outfitNames = names[occ] || ['Stylish Look'];
+  const randomName = outfitNames[Math.floor(Math.random() * outfitNames.length)];
+  
+  // Create image collage HTML
+  const imageCollage = selectedImages.map(img => 
+    `<img src="${img}" alt="Outfit item" style="width: 48%; height: 48%; object-fit: cover; border-radius: 6px; margin: 1%;">`
+  ).join('');
+  
+  return {
+    id: `suggestion_${Date.now()}_${Math.random()}`,
+    occ: occ,
+    g: g,
+    s: s,
+    img: `<div class="image-collage">${imageCollage}</div>`,
+    n: randomName,
+    i: selectedItems,
+    c: colors
+  };
+}
+
+function getCategoryWeights(occasion, season) {
+  // Base weights for all categories
+  const weights = {
+    'T-Shirt': 1,
+    'Hoodie': 1,
+    'Pants': 1,
+    'Shoes': 1,
+    'Accessories': 1,
+    'formal': 1
+  };
+  
+  // Adjust weights based on season
+  if (season === 'summer') {
+    weights['T-Shirt'] = 3; // Prefer light tops
+    weights['Hoodie'] = 0.2; // Avoid heavy hoodies
+    weights['formal'] = 0.5; // Light formal wear
+  } else if (season === 'winter') {
+    weights['Hoodie'] = 3; // Prefer warm hoodies
+    weights['formal'] = 2; // Warm formal wear
+    weights['T-Shirt'] = 0.3; // Avoid light tees
+  } else if (season === 'monsoon') {
+    weights['Hoodie'] = 2; // Good for rain
+    weights['Shoes'] = 2; // Practical footwear
+    weights['Accessories'] = 1.5; // Rain accessories
+  }
+  
+  // Adjust weights based on occasion
+  switch (occasion) {
+    case 'formal':
+      weights['formal'] = 4; // Must include formal wear
+      weights['T-Shirt'] = 0; // No casual tees
+      weights['Hoodie'] = 0; // No hoodies
+      weights['Pants'] = 2; // Professional pants
+      weights['Shoes'] = 2; // Dress shoes
+      weights['Accessories'] = 1.5; // Professional accessories
+      break;
+      
+    case 'party':
+    case 'date':
+      weights['T-Shirt'] = 2; // Stylish tops
+      weights['formal'] = 1.5; // Some formal elements
+      weights['Accessories'] = 2; // Party accessories
+      weights['Shoes'] = 2; // Nice shoes
+      break;
+      
+    case 'outing':
+      weights['T-Shirt'] = 2; // Comfortable tops
+      weights['Pants'] = 2; // Practical pants
+      weights['Shoes'] = 3; // Comfortable shoes
+      weights['Accessories'] = 1.5; // Travel accessories
+      break;
+      
+    case 'casual':
+      weights['T-Shirt'] = 2; // Casual tops
+      weights['Hoodie'] = 1.5; // Can include hoodies
+      weights['Pants'] = 2; // Casual pants
+      break;
+      
+    case 'college':
+      weights['T-Shirt'] = 2; // Campus tees
+      weights['Hoodie'] = 2; // Study hoodies
+      weights['Pants'] = 1.5; // Comfortable pants
+      weights['Accessories'] = 1.5; // Backpack, etc.
+      break;
+      
+    case 'gym':
+      weights['T-Shirt'] = 2; // Workout tees
+      weights['Pants'] = 2; // Gym pants
+      weights['Shoes'] = 3; // Sports shoes
+      weights['Hoodie'] = 0.5; // Light hoodie
+      weights['formal'] = 0; // No formal
+      weights['Accessories'] = 1.5; // Gym accessories
+      break;
+      
+    case 'beach':
+      weights['T-Shirt'] = 2; // Light beach wear
+      weights['Pants'] = 0.5; // Light pants
+      weights['Shoes'] = 1.5; // Sandals
+      weights['Accessories'] = 2; // Beach accessories
+      weights['Hoodie'] = 0; // No hoodies
+      weights['formal'] = 0; // No formal
+      break;
+      
+    case 'wedding':
+      weights['formal'] = 3; // Wedding appropriate
+      weights['Accessories'] = 2; // Wedding accessories
+      weights['Shoes'] = 2; // Dress shoes
+      weights['T-Shirt'] = 0; // No casual tees
+      weights['Hoodie'] = 0; // No hoodies
+      break;
+      
+    case 'festive':
+      weights['formal'] = 2; // Traditional wear
+      weights['Accessories'] = 3; // Festive accessories
+      weights['T-Shirt'] = 1; // Some modern elements
+      break;
+  }
+  
+  return weights;
+}
+
+function weightedRandomSelect(items, weights) {
+  const totalWeight = items.reduce((sum, item) => sum + weights[item], 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const item of items) {
+    random -= weights[item];
+    if (random <= 0) {
+      return item;
+    }
+  }
+  
+  return items[items.length - 1]; // fallback
 }
 
 /* --- LOOKBOOK --- */
@@ -668,7 +880,9 @@ function filterLookbook(btn) {
 function renderLookbook(filter = 'all') {
   const grid = document.getElementById('lookbook-grid');
   grid.innerHTML = '';
-  let res = filter === 'all' ? db : db.filter(o => o.occ === filter);
+  // Include both static outfits from database AND generated suggestions
+  let allOutfits = [...db, ...generatedOutfits];
+  let res = filter === 'all' ? allOutfits : allOutfits.filter(o => o.occ === filter);
   res.forEach(item => grid.innerHTML += buildOutfitCard(item));
 }
 
@@ -705,7 +919,7 @@ function renderSaved() {
     return;
   }
   
-  const items = db.filter(o => saved.includes(o.id));
+  const items = [...db, ...generatedOutfits].filter(o => saved.includes(o.id));
   items.forEach(item => grid.innerHTML += buildOutfitCard(item));
 }
 
@@ -766,6 +980,11 @@ function buildOutfitCard(o) {
 // init
 async function initApp() {
   await Promise.all([fetchDb(), fetchSaved()]);
+  // Load generated outfits from localStorage
+  const stored = localStorage.getItem('generatedOutfits');
+  if (stored) {
+    generatedOutfits = JSON.parse(stored);
+  }
 }
 initApp();
 </script>

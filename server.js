@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('.')); // Serve static files from current directory
 
 // API: Get outfits (with optional filters)
 app.get('/api/outfits', async (req, res) => {
