@@ -509,15 +509,24 @@ function processImageFile(file) {
   const reader = new FileReader();
   reader.onload = async function(e) {
     const img = document.getElementById('preview-img');
-    img.src = e.target.result;
     img.style.display = 'block';
-    
+
     // show loading verdict
     document.getElementById('result-panel').innerHTML = `<div class="empty"><div class="dots" style="margin-bottom:1rem"><span></span><span></span><span></span></div><p>Analyzing uploaded photo...</p></div>`;
-    
-    await loadModel();
-    // need to wait for img to load fully into dom before predict
-    img.onload = () => { runPrediction(img); }
+
+    let analysisStarted = false;
+    const analyzePhoto = async () => {
+      if (analysisStarted) return;
+      analysisStarted = true;
+      await loadModel();
+      await runPrediction(img);
+    };
+
+    img.onload = analyzePhoto;
+    img.src = e.target.result;
+    if (img.complete && img.naturalWidth !== 0) {
+      await analyzePhoto();
+    }
   }
   reader.readAsDataURL(file);
 }
@@ -990,6 +999,10 @@ async function initApp() {
   if (stored) {
     generatedOutfits = JSON.parse(stored);
   }
+  // Warm up the AI model in the background so uploads analyze faster
+  loadModel().catch(() => {
+    // model will load later when needed
+  });
 }
 initApp();
 </script>
