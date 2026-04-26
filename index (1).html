@@ -129,9 +129,10 @@ main{flex:1;padding:1.5rem 2rem 3rem;max-width:1200px;margin:0 auto;width:100%}
 .outfit-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;transition:all var(--trans);cursor:pointer}
 .outfit-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.08);border-color:var(--accent)}
 .outfit-img{height:200px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:8px 8px 0 0}
-.outfit-img img {position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;}
+.outfit-img > img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;}
 .outfit-img .grad{position:absolute;inset:0;z-index:1;}
-.outfit-img .image-collage{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;height:100%;z-index:2;position:relative}
+.outfit-img .image-collage{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;width:100%;height:100%;gap:6px;padding:10px;z-index:2;position:relative}
+.outfit-img .image-collage img{position:static;width:47%;height:47%;object-fit:cover;border-radius:10px;}
 .outfit-tag{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);color:#fff;font-size:.68rem;padding:3px 9px;border-radius:6px;z-index:2;}
 .outfit-info{padding:1rem}
 .outfit-name{font-family:'Inter',sans-serif;font-size:.95rem;font-weight:600;margin-bottom:.5rem}
@@ -964,6 +965,54 @@ function updateBadge() {
   }
 }
 
+function getFallbackImageForOutfit(o) {
+  const categoryMap = {
+    casual: ['T-Shirt','Pants','Shoes'],
+    college: ['T-Shirt','Hoodie','Backpack','Pants'],
+    party: ['formal','Accessories','Shoes'],
+    outing: ['T-Shirt','Pants','Shoes'],
+    formal: ['formal','Shoes','Accessories'],
+    date: ['formal','Accessories','Shoes'],
+    wedding: ['formal','Accessories'],
+    festive: ['formal','Accessories'],
+    gym: ['T-Shirt','Pants','Shoes'],
+    beach: ['T-Shirt','Pants','Accessories']
+  };
+
+  const validCategories = categoryMap[o.occ] || ['T-Shirt','Pants','Shoes'];
+  const available = validCategories.filter(cat => imageCategories[cat]);
+  const cat = available[Math.floor(Math.random() * available.length)] || 'T-Shirt';
+  const pool = imageCategories[cat];
+  const file = pool[Math.floor(Math.random() * pool.length)];
+  return `./images/${file}`;
+}
+
+function resolveOutfitImage(o) {
+  if (!o.img) {
+    return `<img src="${getFallbackImageForOutfit(o)}" alt="${o.n}" />`;
+  }
+
+  if (typeof o.img !== 'string') {
+    return `<img src="${getFallbackImageForOutfit(o)}" alt="${o.n}" />`;
+  }
+
+  const trimmed = o.img.trim();
+  if (trimmed.startsWith('<img') || trimmed.startsWith('<div') || trimmed.startsWith('<picture')) {
+    return o.img;
+  }
+
+  if (trimmed.match(/\.(jpg|jpeg|png|gif|webp|svg)("|'|$)/i)) {
+    const cleanPath = trimmed.replace(/^<img\s+src=["']?/, '').replace(/["'].*$/, '');
+    return `<img src="${cleanPath}" alt="${o.n}" />`;
+  }
+
+  if (trimmed.startsWith('./') || trimmed.startsWith('/')) {
+    return `<img src="${trimmed}" alt="${o.n}" />`;
+  }
+
+  return `<img src="${getFallbackImageForOutfit(o)}" alt="${o.n}" />`;
+}
+
 /* --- RENDER CARD --- */
 function buildOutfitCard(o) {
   const cDots = o.c.map(hex => `<div class="cdot" style="background:${hex}"></div>`).join('');
@@ -971,12 +1020,13 @@ function buildOutfitCard(o) {
   const isSaved = getSavedIds().includes(o.id);
   const btnClass = isSaved ? 'btn-primary' : 'btn-secondary';
   const btnText = isSaved ? '❤️ Saved' : '🤍 Save';
+  const imgHtml = resolveOutfitImage(o);
   
   return `
     <div class="outfit-card">
       <div class="outfit-img">
         <div class="grad" style="background:linear-gradient(to bottom, transparent, rgba(0,0,0,0.4))"></div>
-        ${o.img}
+        ${imgHtml}
         <span class="outfit-tag">${o.occ.toUpperCase()}</span>
       </div>
       <div class="outfit-info">

@@ -11,7 +11,7 @@ app.use(express.static('.')); // Serve static files from current directory
 
 // Embedded outfit data (Vercel-compatible)
 const outfits = [
-  {"id":"c1","occ":"casual","g":"men","s":"summer","img":"<img src=\"./images/casual_tee.jpg\" alt=\"Outfit\">","n":"Classic Tee & Jeans","i":["White Crewneck","Light Wash Denim","White Sneakers"],"c":["#fff","#6aa0d6","#eaeaea"]},
+  {"id":"c1","occ":"casual","g":"men","s":"summer","img":"./images/T-Shirt_1.png","n":"Classic Tee & Jeans","i":["White Crewneck","Light Wash Denim","White Sneakers"],"c":["#fff","#6aa0d6","#eaeaea"]},
   {"id":"c2","occ":"casual","g":"women","s":"summer","img":"👗","n":"Breezy Sundress","i":["Floral Midi Dress","Sandals","Straw Tote"],"c":["#fef08a","#fcd34d","#a16207"]},
   {"id":"c3","occ":"casual","g":"unisex","s":"winter","img":"🧥","n":"Cozy Layers","i":["Oversized Hoodie","Joggers","Chunky Sneakers"],"c":["#94a3b8","#475569","#0f172a"]},
   {"id":"c4","occ":"casual","g":"men","s":"winter","img":"🧣","n":"Layered Comfort","i":["Flannel Shirt","Dark Denim","Boots"],"c":["#7f1d1d","#1e3a8a","#451a03"]},
