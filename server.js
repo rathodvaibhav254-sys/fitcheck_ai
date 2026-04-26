@@ -1,28 +1,39 @@
 const express = require('express');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('.')); // Serve static files from current directory
 
+// Load data from JSON files
+let outfits = [];
+let savedLooks = [];
+
+try {
+  outfits = JSON.parse(fs.readFileSync(path.join(__dirname, 'outfits.json'), 'utf8'));
+  savedLooks = JSON.parse(fs.readFileSync(path.join(__dirname, 'saved.json'), 'utf8'));
+} catch (error) {
+  console.error('Error loading data files:', error);
+}
+
 // API: Get outfits (with optional filters)
-app.get('/api/outfits', async (req, res) => {
+app.get('/api/outfits', (req, res) => {
   try {
     const { occ, g, s } = req.query;
-    
-    let outfits = await prisma.outfit.findMany();
-    
+
+    let filteredOutfits = [...outfits];
+
     if (occ || g || s) {
       const targetOcc = occ || 'all';
       const targetG = g || 'unisex';
       const targetS = s || 'all';
-      
-      outfits = outfits.filter(o => {
+
+      filteredOutfits = filteredOutfits.filter(o => {
         let mOcc = (targetOcc === 'all' || o.occ === targetOcc);
         let mG = (targetG === 'unisex' || o.g === 'unisex' || o.g === targetG);
         let mS = (targetS === 'all' || o.s === 'all' || o.s === targetS);
@@ -30,25 +41,64 @@ app.get('/api/outfits', async (req, res) => {
       });
 
       // fallback to just occasion
-      if (outfits.length === 0 && targetOcc !== 'all') {
-        const allOutfits = await prisma.outfit.findMany({ where: { occ: targetOcc } });
-        outfits = allOutfits.slice(0, 6);
+      if (filteredOutfits.length === 0 && targetOcc !== 'all') {
+        const fallbackOutfits = outfits.filter(o => o.occ === targetOcc);
+        filteredOutfits = fallbackOutfits.slice(0, 6);
       }
     }
 
-    // parse JSON for i and c
-    const parsed = outfits.map(o => ({
-      ...o,
-      i: JSON.parse(o.i),
-      c: JSON.parse(o.c)
-    }));
-    
-    res.json(parsed);
+    res.json(filteredOutfits);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch outfits' });
   }
 });
+
+// API: Get saved looks
+app.get('/api/saved', (req, res) => {
+  try {
+    res.json(savedLooks);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch saved looks' });
+  }
+});
+
+// API: Save a look
+app.post('/api/saved', (req, res) => {
+  try {
+    const { outfitId } = req.body;
+    if (!savedLooks.includes(outfitId)) {
+      savedLooks.push(outfitId);
+      fs.writeFileSync(path.join(__dirname, 'saved.json'), JSON.stringify(savedLooks, null, 2));
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to save look' });
+  }
+});
+
+// API: Remove saved look
+app.delete('/api/saved/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    savedLooks = savedLooks.filter(savedId => savedId !== id);
+    fs.writeFileSync(path.join(__dirname, 'saved.json'), JSON.stringify(savedLooks, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to remove saved look' });
+  }
+});
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
 
 // API: Get saved look IDs
 app.get('/api/saved', async (req, res) => {
