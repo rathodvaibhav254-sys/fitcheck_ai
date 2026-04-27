@@ -984,7 +984,7 @@ function getFallbackImageForOutfit(o) {
   const cat = available[Math.floor(Math.random() * available.length)] || 'T-Shirt';
   const pool = imageCategories[cat];
   const file = pool[Math.floor(Math.random() * pool.length)];
-  return `./images/${file}`;
+  return `images/${file}`;
 }
 
 function resolveOutfitImage(o) {
@@ -1003,11 +1003,16 @@ function resolveOutfitImage(o) {
 
   if (trimmed.match(/\.(jpg|jpeg|png|gif|webp|svg)("|'|$)/i)) {
     const cleanPath = trimmed.replace(/^<img\s+src=["']?/, '').replace(/["'].*$/, '');
-    return `<img src="${cleanPath}" alt="${o.n}" />`;
+    const normalized = cleanPath.replace(/^\.\//, '').replace(/^\//, '');
+    return `<img src="${normalized}" alt="${o.n}" />`;
   }
 
-  if (trimmed.startsWith('./') || trimmed.startsWith('/')) {
-    return `<img src="${trimmed}" alt="${o.n}" />`;
+  if (trimmed.startsWith('./')) {
+    return `<img src="${trimmed.replace(/^\.\//, '')}" alt="${o.n}" />`;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return `<img src="${trimmed.slice(1)}" alt="${o.n}" />`;
   }
 
   return `<img src="${getFallbackImageForOutfit(o)}" alt="${o.n}" />`;
